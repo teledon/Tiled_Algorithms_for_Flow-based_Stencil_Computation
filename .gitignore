@@ -1,0 +1,15 @@
+*.csv
+*.log
+*.ncu-rep
+*.png
+*.swp
+*.xopp
+*temp*
+nohup.out
+results*.csv
+sciddicaTcuda
+sciddicaTcuda_tiled_classic_h
+sciddicaTcuda_tiled_classic_noh
+sciddicaTcuda_tiled_halo_sync
+sciddicaTcuda_tiled_halo_sync_priv
+tessina_output_*
