@@ -38,7 +38,7 @@ or
 ```
 bash run_extended.sh -steps 4000 -gpu 0
 ```
-
+## Authors
 
 The code was developed by Donato D'Ambrosio, Alessio De Rango, Giuseppe Mendicino, Salvatore Fiorentino, Bruno Francesco Barbara, Agostino Rizzo, and Pietro Sabatino from the University of Calabria, Italy.
 
