@@ -40,9 +40,12 @@ bash run_extended.sh -steps 4000 -gpu 0
 ```
 ## Authors
 
-The code was developed by Donato D'Ambrosio, Alessio De Rango, Giuseppe Mendicino, Salvatore Fiorentino, Bruno Francesco Barbara, Agostino Rizzo, and Pietro Sabatino from the University of Calabria, Italy.
+The code was developed by:
+- **Donato D'Ambrosio**, **Salvatore Fiorentino**, **Bruno Francesco Barbara**, and **Agostino Rizzo**, Department of Mathematics and Computer Science, University of Calabria, Italy
+- **Alessio De Rango** and **Giuseppe Mendicino**, Department of Environmental Engineering, University of Calabria, Italy
+- **Pietro Sabatino**, Institute for High Performance Computing and Networking (ICAR-CNR), Italy
 
-For information, please write an email to donato.dambrosio at unical.it
+For information, please write an email to donato.dambrosio [at] unical.it
 
-Please let us know if you take advantage of the code contained in this repository. A bibliographic reference is coming soon...
+Please let us know if you use the code in this repository.
 
