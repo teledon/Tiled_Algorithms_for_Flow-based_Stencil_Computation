@@ -14,12 +14,11 @@ using namespace std;
 // Format: flow_index:cell_label:(row_index,col_index)
 //
 //   cell_label in [0,1,2,3,4]: label assigned to each cell in the neighborhood
-//   flow_index in   [0,1,2,3]: outgoing flow indices in Sf from cell 0 to the others
 //       (row_index,col_index): 2D relative indices of the cells
 //
-//               |0:1:(-1, 0)|
-//   |1:2:( 0,-1)| :0:( 0, 0)|2:3:( 0, 1)|
-//               |3:4:( 1, 0)|
+//             |1:(-1, 0)|
+//   |2:( 0,-1)|0:( 0, 0)|3:( 0, 1)|
+//             |4:( 1, 0)|
 //
 //
 int h_Xi[] = {0, -1,  0,  0,  1};// Xj: von Neuman neighborhood row coordinates (see below)
@@ -34,6 +33,8 @@ __constant__ int Xj[5]; // Xj: von Neuman neighborhood col coordinates (see belo
 #define SOURCE_PATH_ID 3
 #define OUTPUT_PATH_ID 4
 #define STEPS_ID 5
+//#define DOMAIN_CHUNK_SIZE_X_ID 6
+//#define DOMAIN_CHUNK_SIZE_Y_ID 7
 #define BLOCK_SIZE_D0_ID 6
 #define BLOCK_SIZE_D1_ID 7
 // ----------------------------------------------------------------------------
@@ -43,7 +44,7 @@ __constant__ int Xj[5]; // Xj: von Neuman neighborhood col coordinates (see belo
 #define P_EPSILON 0.001
 #define ADJACENT_CELLS 4
 #define STRLEN 256
-#define NEIGBORHOOD_SIZE 5
+
 // ----------------------------------------------------------------------------
 // Read/Write access macros linearizing single/multy layer buffer 2D indices
 // ----------------------------------------------------------------------------
@@ -163,64 +164,68 @@ void sciddicaTSimulationInit(int i, int j, int r, int c, double* Sz, double* Sh)
 // computing kernels, aka elementary processes in the XCA terminology
 // ----------------------------------------------------------------------------
 __global__
-void sciddicaTResetFlows(int i_start, int i_end, int j_start, int j_end, int r, int c, double nodata, double* __restrict__ Sf)
+void sciddicaTFlowsComputation(int i_start, int i_end, int j_start, int j_end, int r, int c, double nodata, /*int* Xi, int* Xj,*/ const double* __restrict__ Sz, const double* __restrict__ Sh, double* __restrict__ Sh_next, const double p_r, const double p_epsilon)
 {
-  int i = blockIdx.y * blockDim.y + threadIdx.y;
-  int j = blockIdx.x * blockDim.x + threadIdx.x;
+  dim3 tileDim(blockDim.x - 2, blockDim.y - 2, 1);  // I remove the 3 halo cells from blockDim to obtain tileDim, i.e., the size of the domain partitions.
+  int i = blockIdx.y * tileDim.y + threadIdx.y - 1; // thread 0 maps the first halo cell, thread 1 the first domain partition cell, ...
+  int j = blockIdx.x * tileDim.x + threadIdx.x - 1;
+  int ti = threadIdx.y ; // local indexes
+  int tj = threadIdx.x ; //
+                                                     // domain_size = 16 |++++------------| ("-" = domain cells; "+" = cells to be updated)
+                                                     // blk_0           |.****.|            ("*" = threads updating domain cells; "." = threads computing average)
+                                                     // blk_0 index i    012345
+                                                     //  
+                                                     // domain_size = 16 |----++++--------| ("-" = domain cells; "+" = cells to be updated)
+                                                     // blk_1               |.****.|        ("*" = threads updating domain cells; "." = threads computing average)
+                                                     // blk_1 index i        012345
+                                                     //
 
+  extern __shared__ uint8_t S[];
+  double* sh_next_shared = (double*) S;
+
+  for(int n = 0; n < 4; ++n)
+    BUF_SET(sh_next_shared,  blockDim.y,  blockDim.x, n, threadIdx.y, threadIdx.x, 0.0);
+ 
   if (i < i_start or i >= i_end or j < j_start or j >= j_end)
     return;
 
-  BUF_SET(Sf, r, c, 0, i, j, 0.0);
-  BUF_SET(Sf, r, c, 1, i, j, 0.0);
-  BUF_SET(Sf, r, c, 2, i, j, 0.0);
-  BUF_SET(Sf, r, c, 3, i, j, 0.0);
-}
-
-__global__
-void sciddicaTFlowsComputation(int i_start, int i_end, int j_start, int j_end, int r, int c, double nodata, /*int* Xi, int* Xj,*/ const double* __restrict__ Sz, const double* __restrict__ Sh, double* __restrict__ Sf, const double p_r, const double p_epsilon)
-{
-  int i = blockIdx.y * (blockDim.y-2) + threadIdx.y - 1;
-  int j = blockIdx.x * (blockDim.x-2) + threadIdx.x - 1;
-
-  int i_out = i + 1;
-  int j_out = j + 1;
-  if (i_out < i_start || i_out >= i_end || j_out < j_start || j_out >= j_end)
-    return;
-
-  extern __shared__ double S[];
-  double* Sz_shared = S;
-  double* Sh_shared = (double*) &S[blockDim.x * blockDim.y];
-
-  SET(Sz_shared, blockDim.x, threadIdx.y, threadIdx.x, GET(Sz, c, i, j));
-  SET(Sh_shared, blockDim.x, threadIdx.y, threadIdx.x, GET(Sh, c, i, j));
-
-  __syncthreads();
-
-  // Sarebbe meglio eliminare gli ultimi due thread invece che il primo e l'ultimo
-  if (threadIdx.y < 1 || threadIdx.y >= blockDim.y - 1 ||
-      threadIdx.x < 1 || threadIdx.x >= blockDim.x - 1)
-    return;
-
-
-  bool eliminated_cells[NEIGBORHOOD_SIZE] = {false, false, false, false, false};
+  bool eliminated_cells[5] = {false, false, false, false, false};
   bool again;
   int cells_count;
   double average;
   double m;
-  double u[NEIGBORHOOD_SIZE];
+  double u[5];
   int n;
   double z, h;
-  
-  m = GET(Sh_shared, blockDim.x, threadIdx.y, threadIdx.x) - p_epsilon;
-  u[0] = GET(Sz_shared, blockDim.x, threadIdx.y, threadIdx.x) + p_epsilon;
 
-  for (int n = 1; n <= ADJACENT_CELLS; n++)
+  m = GET(Sh, c, i, j) - p_epsilon;
+  if (m <= 0.0)
   {
-    z = GET(Sz_shared, blockDim.x, threadIdx.y + Xi[n], threadIdx.x + Xj[n]);
-    h = GET(Sh_shared, blockDim.x, threadIdx.y + Xi[n], threadIdx.x + Xj[n]);
-    u[n] = z + h;
+    bool at_least_one = false;
+    for(int n = 1; n<5;++n){
+      int i_n = i+Xi[n];
+      int j_n = j+Xj[n];
+      if(not (i_n < 0 or i_n >= r or j_n < 0 or j_n >= c))
+        if(GET(Sh, c, i_n, j_n) - p_epsilon > 0)
+          at_least_one=true;
+    }
+    if(not at_least_one)
+      return;
   }
+
+  u[0] = GET(Sz, c, i, j) + p_epsilon;
+  z = GET(Sz, c, i + Xi[1], j + Xj[1]);
+  h = GET(Sh, c, i + Xi[1], j + Xj[1]);
+  u[1] = z + h;                                         
+  z = GET(Sz, c, i + Xi[2], j + Xj[2]);
+  h = GET(Sh, c, i + Xi[2], j + Xj[2]);
+  u[2] = z + h;                                         
+  z = GET(Sz, c, i + Xi[3], j + Xj[3]);
+  h = GET(Sh, c, i + Xi[3], j + Xj[3]);
+  u[3] = z + h;                                         
+  z = GET(Sz, c, i + Xi[4], j + Xj[4]);
+  h = GET(Sh, c, i + Xi[4], j + Xj[4]);
+  u[4] = z + h;
 
   do
   {
@@ -228,7 +233,7 @@ void sciddicaTFlowsComputation(int i_start, int i_end, int j_start, int j_end, i
     average = m;
     cells_count = 0;
 
-    for (n = 0; n < NEIGBORHOOD_SIZE; n++)
+    for (n = 0; n < 5; n++)
       if (!eliminated_cells[n])
       {
         average += u[n];
@@ -238,55 +243,37 @@ void sciddicaTFlowsComputation(int i_start, int i_end, int j_start, int j_end, i
     if (cells_count != 0)
       average /= cells_count;
 
-    for (n = 0; n < NEIGBORHOOD_SIZE; n++)
+    for (n = 0; n < 5; n++)
       if ((average <= u[n]) && (!eliminated_cells[n]))
       {
-        eliminated_cells[n] = true;
+        eliminated_cells[n] = true; 
         again = true;
       }
   } while (again);
 
-  if (!eliminated_cells[1]) BUF_SET(Sf, r, c, 0, i, j, (average - u[1]) * p_r);
-  if (!eliminated_cells[2]) BUF_SET(Sf, r, c, 1, i, j, (average - u[2]) * p_r);
-  if (!eliminated_cells[3]) BUF_SET(Sf, r, c, 2, i, j, (average - u[3]) * p_r);
-  if (!eliminated_cells[4]) BUF_SET(Sf, r, c, 3, i, j, (average - u[4]) * p_r);
-}
-
-__global__
-void sciddicaTWidthUpdate(int i_start, int i_end, int j_start, int j_end, int r, int c, double nodata, /*int* Xi, int* Xj,*/ const double* __restrict__ Sz, double* __restrict__ Sh, const double* __restrict__ Sf)
-{
-  int i =  blockIdx.y * (blockDim.y-2) + threadIdx.y - 1;
-  int j =  blockIdx.x * (blockDim.x-2) + threadIdx.x - 1;
-  int i_out = i + 1;
-  int j_out = j + 1;
-
-  extern __shared__ double Sf_shared[];
-
-  if (i_out < i_start || i_out >= i_end || j_out < j_start || j_out >= j_end)
+  double f_out = 0.0;
+  for (int n = 1; n < 5; n++)
   {
-    for (int n = 1; n <= ADJACENT_CELLS; n++)
-      BUF_SET(Sf_shared, blockDim.y, blockDim.x, n-1, threadIdx.y, threadIdx.x, 0.0);
-
-    return;
+    if (!eliminated_cells[n])
+      {
+        f_out = (average - u[n]) * p_r;
+        double sh_next_shared_prev = BUF_GET(sh_next_shared, blockDim.y, blockDim.x, n - 1, ti, tj);
+        BUF_SET(sh_next_shared, blockDim.y, blockDim.x, n - 1, ti, tj, sh_next_shared_prev + f_out);
+      }
   }
-
-  for (int n = 1; n <= ADJACENT_CELLS; n++)
-    BUF_SET(Sf_shared, blockDim.y, blockDim.x, n-1, threadIdx.y, threadIdx.x, BUF_GET(Sf, r, c, n-1, i, j));
-
+  
   __syncthreads();
 
-  if (threadIdx.y < 1 || threadIdx.y >= blockDim.y - 1 ||
-      threadIdx.x < 1 || threadIdx.x >= blockDim.x - 1)
-    return;
+  // Only in tile threads
+  if(ti > 0 and ti < tileDim.y + 1 and  tj > 0 and tj < tileDim.x + 1){
+    double h_next =  GET(Sh, c, i, j) ;
+    h_next += BUF_GET(sh_next_shared, blockDim.y, blockDim.x, 3, ti+Xi[1], tj+Xj[1]) - BUF_GET(sh_next_shared, blockDim.y, blockDim.x, 0, ti, tj);
+    h_next += BUF_GET(sh_next_shared, blockDim.y, blockDim.x, 2, ti+Xi[2], tj+Xj[2]) - BUF_GET(sh_next_shared, blockDim.y, blockDim.x, 1, ti, tj);
+    h_next += BUF_GET(sh_next_shared, blockDim.y, blockDim.x, 1, ti+Xi[3], tj+Xj[3]) - BUF_GET(sh_next_shared, blockDim.y, blockDim.x, 2, ti, tj);
+    h_next += BUF_GET(sh_next_shared, blockDim.y, blockDim.x, 0, ti+Xi[4], tj+Xj[4]) - BUF_GET(sh_next_shared, blockDim.y, blockDim.x, 3, ti, tj);
+    SET(Sh_next, c, i, j, h_next );
+  }
 
-  double h_next;
-  h_next = GET(Sh, c, i, j);
-  
-  for (int n = 1; n <= ADJACENT_CELLS; n++)
-      h_next += BUF_GET(Sf_shared, blockDim.y, blockDim.x, (ADJACENT_CELLS-n), threadIdx.y+Xi[n], threadIdx.x+Xj[n]) \
-              - BUF_GET(Sf_shared, blockDim.y, blockDim.x, (n-1), threadIdx.y, threadIdx.x);
-
-  SET(Sh, c, i, j, h_next);
 }
 
 // ----------------------------------------------------------------------------
@@ -300,21 +287,22 @@ int main(int argc, char **argv)
 
   int r = rows;                  // r: grid rows
   int c = cols;                  // c: grid columns
-  int i_start = 1, i_end = r-1;  // [i_start,i_end[: kernels application range along the rows
-  int j_start = 1, j_end = c-1;  // [i_start,i_end[: kernels application range along the rows
+  int i_start = 2, i_end = r-2;  // [i_start,i_end[: kernels application range along the rows
+  int j_start = 2, j_end = c-2;  // [i_start,i_end[: kernels application range along the rows
   double *Sz;                    // Sz: substate (grid) containing the cells' altitude a.s.l.
   double *Sh;                    // Sh: substate (grid) containing the cells' flow thickness
-  double *Sf;                    // Sf: 4 substates containing the flows towards the 4 neighs
+  double *Sh_next;               // Sh_next: substate (grid) containing the updated cells' flow thickness
   double p_r = P_R;              // p_r: minimization algorithm outflows dumping factor
   double p_epsilon = P_EPSILON;  // p_epsilon: frictional parameter threshold
   int steps = atoi(argv[STEPS_ID]); //steps: simulation steps
+  //dim3 domain_chunk_size(atoi(argv[DOMAIN_CHUNK_SIZE_X_ID]), atoi(argv[DOMAIN_CHUNK_SIZE_Y_ID]), 1);
   int block_size_d0 = atoi(argv[BLOCK_SIZE_D0_ID]);
   int block_size_d1 = atoi(argv[BLOCK_SIZE_D1_ID]);
 
-  Sz = addLayer2D(r, c);                 // Allocates the Sz substate grid
-  Sh = addLayer2D(r, c);                 // Allocates the Sh substate grid
-  Sf = addLayer2D(ADJACENT_CELLS* r, c); // Allocates the Sf substates grid, 
-                                         //   having one layer for each adjacent cell
+
+  Sz      = addLayer2D(r, c); // Allocates the Sz substate grid
+  Sh      = addLayer2D(r, c); // Allocates the Sh substate grid
+  Sh_next = addLayer2D(r, c); // Allocates the Sh_next substate grid
 
   loadGrid2D(Sz, r, c, argv[DEM_PATH_ID]);   // Load Sz from file
   loadGrid2D(Sh, r, c, argv[SOURCE_PATH_ID]);// Load Sh from file
@@ -324,27 +312,30 @@ int main(int argc, char **argv)
     for (int i = i_start; i < i_end; i++)
       for (int j = j_start; j < j_end; j++)
         sciddicaTSimulationInit(i, j, r, c, Sz, Sh);
+  memcpy(Sh_next, Sh, sizeof(double) * r * c);
 
   cudaMemcpyToSymbol(Xi, h_Xi, 5*sizeof(int)); // Copy Xi to DEVICE in CONSTANT memory
   cudaMemcpyToSymbol(Xj, h_Xj, 5*sizeof(int)); // Copy Xj to DEVICE in CONSTANT memory
 
-  cudaMemPrefetchAsync(Sz, sizeof(double)*r*c, 0 , NULL);
-  cudaMemPrefetchAsync(Sh, sizeof(double)*r*c, 0 , NULL);
-  cudaMemPrefetchAsync(Sf, sizeof(double)*r*c*ADJACENT_CELLS, 0 , NULL);
+  cudaMemPrefetchAsync(Sz,      sizeof(double)*r*c, 0 , NULL);
+  cudaMemPrefetchAsync(Sh,      sizeof(double)*r*c, 0 , NULL);
+  cudaMemPrefetchAsync(Sh_next, sizeof(double)*r*c, 0 , NULL);
   cudaDeviceSynchronize();
 
+  //dim3 grid_size(ceil(c/(float)domain_chunk_size.x), ceil(r/(float)domain_chunk_size.y), 1);
+  //dim3 block_size(domain_chunk_size.x + 2, domain_chunk_size.y + 2, 1);
+  //int shmem_size = block_size.x * block_size.y * sizeof(double) + block_size.x * block_size.y * sizeof(uint8_t);
   dim3 block_size(block_size_d0, block_size_d1, 1);
-  dim3 grid_size(ceil(c/(float)(block_size.x-2)), ceil(r/(float)(block_size.y-2)), 1);
-  int shmem_size_fc = 2 * block_size.x * block_size.y * sizeof(double);
-  size_t shmem_size_wu = ADJACENT_CELLS * block_size.x * block_size.y * sizeof(double);
+  dim3 grid_size(ceil(c/(float)(block_size.x - 2)), ceil(r/(float)(block_size.y - 2)), 1);
+  int shmem_size = block_size.x * block_size.y * sizeof(double) * 4 ;
 
   util::Timer cl_timer;
   // simulation loop
   for (int s = 0; s < steps; ++s)
   {
-    sciddicaTResetFlows<<<grid_size,block_size>>>(i_start, i_end, j_start, j_end, r, c, nodata, Sf);
-    sciddicaTFlowsComputation<<<grid_size,block_size,shmem_size_fc>>>(i_start, i_end, j_start, j_end, r, c, nodata, /*Xi, Xj,*/ Sz, Sh, Sf, p_r, p_epsilon);
-    sciddicaTWidthUpdate<<<grid_size,block_size,shmem_size_wu>>>(i_start, i_end, j_start, j_end, r, c, nodata, /*Xi, Xj,*/ Sz, Sh, Sf);
+    sciddicaTFlowsComputation<<<grid_size, block_size, shmem_size>>>(i_start, i_end, j_start, j_end, r, c, nodata, /*Xi, Xj,*/ Sz, Sh, Sh_next, p_r, p_epsilon);
+    fflush (stdout);
+    cudaMemcpy(Sh, Sh_next, sizeof(double)*r*c, cudaMemcpyDeviceToDevice);
   }
   cudaDeviceSynchronize();
   double cl_time = static_cast<double>(cl_timer.getTimeMilliseconds()) / 1000.0;
@@ -360,7 +351,7 @@ int main(int argc, char **argv)
   // delete[] Sf;
   cudaFree(Sz);
   cudaFree(Sh);
-  cudaFree(Sf);
+  cudaFree(Sh_next);
 
   return 0;
 }

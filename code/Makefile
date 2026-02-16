@@ -6,56 +6,57 @@ endif
 HDR=../data/tessina_header.txt
 DEM=../data/tessina_dem.txt
 SRC=../data/tessina_source.txt
-OUT_CUDA=./tessina_output_CUDA
-OUT_CUDA_TILED_CLASSIC_HALO=./tessina_output_CUDA_tiled_classic_h
-OUT_CUDA_TILED_CLASSIC_NO_HALO=./tessina_output_CUDA_tiled_classic_noh
-OUT_CUDA_TILED_HALO_SYNC =./tessina_output_CUDA_tiled_halo_sync
-OUT_CUDA_TILED_HALO_SYNC_PRIV =./tessina_output_CUDA_tiled_halo_sync_priv
+OUT_NAIVE=./tessina_output_naive
+OUT_TILED_BASIC_HALO=./tessina_output_tiled_basic_halo
+OUT_TILED_BASIC_NO_HALO=./tessina_output_tiled_basic_no_halo
+OUT_TILED_CFAME =./tessina_output_tiled_CfAMe
+OUT_TILED_CFAMO =./tessina_output_tiled_CfAMo
 STEPS=4000
 
-BLOCK_SIZE_0 = 32
-BLOCK_SIZE_1 = 32
-EXEC_CUDA = sciddicaTcuda
-EXEC_CUDA_TILED_CLASSIC_HALO = sciddicaTcuda_tiled_classic_h
-EXEC_CUDA_TILED_CLASSIC_NO_HALO = sciddicaTcuda_tiled_classic_noh
-EXEC_CUDA_TILED_HALO_SYNC = sciddicaTcuda_tiled_halo_sync
-EXEC_CUDA_TILED_HALO_SYNC_PRIV = sciddicaTcuda_tiled_halo_sync_priv
+BLOCK_SIZE_0 = 16
+BLOCK_SIZE_1 = 16
+EXEC_NAIVE = sciddicaT_naive
+EXEC_TILED_BASIC_HALO = sciddicaT_tiled_basic_halo
+EXEC_TILED_BASIC_NO_HALO = sciddicaT_tiled_basic_no_halo
+EXEC_TILED_CFAME = sciddicaT_tiled_CfAMe
+EXEC_TILED_CFAMO = sciddicaT_tiled_CfAMo
 
-EXECUTABLES = $(EXEC_CUDA_TILED_CLASSIC_HALO) $(EXEC_CUDA_TILED_CLASSIC_NO_HALO) $(EXEC_CUDA_TILED_HALO_SYNC) $(EXEC_CUDA_TILED_HALO_SYNC_PRIV) $(EXEC_CUDA)
+
+EXECUTABLES = $(EXEC_NAIVE) $(EXEC_TILED_BASIC_HALO) $(EXEC_TILED_BASIC_NO_HALO) $(EXEC_TILED_CFAME) $(EXEC_TILED_CFAMO)
 
 default: all
 all: $(EXECUTABLES)
 
-$(EXEC_CUDA_TILED_HALO_SYNC): sciddicaT_tiled_halo_sync.cu
+$(EXEC_NAIVE): sciddicaT_naive.cu
+	nvcc $^ -o $@ -O3 -w
+$(EXEC_TILED_BASIC_HALO): sciddicaT_tiled_basic_halo.cu
+	nvcc $^ -o $@ -O3 -w
+$(EXEC_TILED_BASIC_NO_HALO): sciddicaT_tiled_basic_no_halo.cu
+	nvcc $^ -o $@ -O3 -w
+$(EXEC_TILED_CFAME): sciddicaT_tiled_CfAMe.cu
+	nvcc $^ -o $@ -O3 -w
+$(EXEC_TILED_CFAMO): sciddicaT_tiled_CfAMo.cu
 	nvcc $^ -o $@ -w
-$(EXEC_CUDA_TILED_HALO_SYNC_PRIV): sciddicaT_tiled_halo_sync_priv.cu
-	nvcc $^ -o $@ -O3 -w
-$(EXEC_CUDA_TILED_CLASSIC_HALO): sciddicaT_tiled_classic_h.cu
-	nvcc $^ -o $@ -O3 -w
-$(EXEC_CUDA_TILED_CLASSIC_NO_HALO): sciddicaT_tiled_classic_noh.cu
-	nvcc $^ -o $@ -O3 -w
-$(EXEC_CUDA): sciddicaT.cu
-	nvcc $^ -o $@ -O3 -w
 
-run_cuda_tiled_halo_sync: $(EXEC_CUDA_TILED_HALO_SYNC)
-	./$(EXEC_CUDA_TILED_HALO_SYNC) $(HDR) $(DEM) $(SRC) $(OUT_CUDA_TILED_HALO_SYNC) $(STEPS) $(BLOCK_SIZE_0) $(BLOCK_SIZE_1) && md5sum $(OUT_CUDA_TILED_HALO_SYNC) && cat $(HDR) $(OUT_CUDA_TILED_HALO_SYNC) > $(OUT_CUDA_TILED_HALO_SYNC).dat && rm $(OUT_CUDA_TILED_HALO_SYNC)
 
-run_cuda_tiled_halo_sync_priv: $(EXEC_CUDA_TILED_HALO_SYNC_PRIV)
-	./$(EXEC_CUDA_TILED_HALO_SYNC_PRIV) $(HDR) $(DEM) $(SRC) $(OUT_CUDA_TILED_HALO_SYNC_PRIV) $(STEPS) $(BLOCK_SIZE_0) $(BLOCK_SIZE_1) && md5sum $(OUT_CUDA_TILED_HALO_SYNC_PRIV) && cat $(HDR) $(OUT_CUDA_TILED_HALO_SYNC_PRIV) > $(OUT_CUDA_TILED_HALO_SYNC_PRIV).dat && rm $(OUT_CUDA_TILED_HALO_SYNC_PRIV)
+run_naive: $(EXEC_NAIVE)
+	./$(EXEC_NAIVE) $(HDR) $(DEM) $(SRC) $(OUT_NAIVE) $(STEPS) $(BLOCK_SIZE_0) $(BLOCK_SIZE_1) && md5sum $(OUT_NAIVE) && cat $(HDR) $(OUT_NAIVE) > $(OUT_NAIVE).dat && rm $(OUT_NAIVE)
 
-run_cuda_tiled_classic_h: $(EXEC_CUDA_TILED_CLASSIC_HALO)
-	./$(EXEC_CUDA_TILED_CLASSIC_HALO) $(HDR) $(DEM) $(SRC) $(OUT_CUDA_TILED_CLASSIC_HALO) $(STEPS) $(BLOCK_SIZE_0) $(BLOCK_SIZE_1) && md5sum $(OUT_CUDA_TILED_CLASSIC_HALO) && cat $(HDR) $(OUT_CUDA_TILED_CLASSIC_HALO) > $(OUT_CUDA_TILED_CLASSIC_HALO).dat && rm $(OUT_CUDA_TILED_CLASSIC_HALO)
+run_tiled_basic_halo: $(EXEC_TILED_BASIC_HALO)
+	./$(EXEC_TILED_BASIC_HALO) $(HDR) $(DEM) $(SRC) $(OUT_TILED_BASIC_HALO) $(STEPS) $(BLOCK_SIZE_0) $(BLOCK_SIZE_1) && md5sum $(OUT_TILED_BASIC_HALO) && cat $(HDR) $(OUT_TILED_BASIC_HALO) > $(OUT_TILED_BASIC_HALO).dat && rm $(OUT_TILED_BASIC_HALO)
 
-run_cuda_tiled_classic_noh: $(EXEC_CUDA_TILED_CLASSIC_NO_HALO)
-	./$(EXEC_CUDA_TILED_CLASSIC_NO_HALO) $(HDR) $(DEM) $(SRC) $(OUT_CUDA_TILED_CLASSIC_NO_HALO) $(STEPS) $(BLOCK_SIZE_0) $(BLOCK_SIZE_1) && md5sum $(OUT_CUDA_TILED_CLASSIC_NO_HALO) && cat $(HDR) $(OUT_CUDA_TILED_CLASSIC_NO_HALO) > $(OUT_CUDA_TILED_CLASSIC_NO_HALO).dat && rm $(OUT_CUDA_TILED_CLASSIC_NO_HALO)
+run_tiled_basic_no_halo: $(EXEC_TILED_BASIC_NO_HALO)
+	./$(EXEC_TILED_BASIC_NO_HALO) $(HDR) $(DEM) $(SRC) $(OUT_TILED_BASIC_NO_HALO) $(STEPS) $(BLOCK_SIZE_0) $(BLOCK_SIZE_1) && md5sum $(OUT_TILED_BASIC_NO_HALO) && cat $(HDR) $(OUT_TILED_BASIC_NO_HALO) > $(OUT_TILED_BASIC_NO_HALO).dat && rm $(OUT_TILED_BASIC_NO_HALO)
 
-run_cuda: $(EXEC_CUDA)
-	./$(EXEC_CUDA) $(HDR) $(DEM) $(SRC) $(OUT_CUDA) $(STEPS) $(BLOCK_SIZE_0) $(BLOCK_SIZE_1) && md5sum $(OUT_CUDA) && cat $(HDR) $(OUT_CUDA) > $(OUT_CUDA).dat && rm $(OUT_CUDA)
+run_tiled_CfAMe: $(EXEC_TILED_CFAME)
+	./$(EXEC_TILED_CFAME) $(HDR) $(DEM) $(SRC) $(OUT_TILED_CFAME) $(STEPS) $(BLOCK_SIZE_0) $(BLOCK_SIZE_1) && md5sum $(OUT_TILED_CFAME) && cat $(HDR) $(OUT_TILED_CFAME) > $(OUT_TILED_CFAME).dat && rm $(OUT_TILED_CFAME)
+
+run_tiled_CfAMo: $(EXEC_TILED_CFAMO)
+	./$(EXEC_TILED_CFAMO) $(HDR) $(DEM) $(SRC) $(OUT_TILED_CFAMO) $(STEPS) $(BLOCK_SIZE_0) $(BLOCK_SIZE_1) && md5sum $(OUT_TILED_CFAMO) && cat $(HDR) $(OUT_TILED_CFAMO) > $(OUT_TILED_CFAMO).dat && rm $(OUT_TILED_CFAMO)
+
 
 clean:
 	rm -f $(EXECUTABLES) *.o *output*
 
 wipe:
 	rm -f *.o *output*
-
-

@@ -166,17 +166,17 @@ void sciddicaTSimulationInit(int i, int j, int r, int c, double* Sz, double* Sh)
 __global__
 void sciddicaTFlowsComputation(int i_start, int i_end, int j_start, int j_end, int r, int c, double nodata, /*int* Xi, int* Xj,*/ const double* __restrict__ Sz, const double* __restrict__ Sh, double* __restrict__ Sh_next, const double p_r, const double p_epsilon)
 {
-  dim3 chunkDim(blockDim.x - 2, blockDim.y - 2, 1);  // tolgo le 3 celle halo da blockDim per ricavare chunkDim, cioè la size delle partizioni del dominio
-  int i = blockIdx.y * chunkDim.y + threadIdx.y - 1; // thread 0 mappa prima cella halo, thread 1 prima cella della partizione, ...
-  int j = blockIdx.x * chunkDim.x + threadIdx.x - 1;
+  dim3 tileDim(blockDim.x - 2, blockDim.y - 2, 1);  // I remove the 3 halo cells from blockDim to obtain tileDim, i.e., the size of the domain partitions.
+  int i = blockIdx.y * tileDim.y + threadIdx.y - 1; // thread 0 maps the first halo cell, thread 1 the first domain partition cell, ...
+  int j = blockIdx.x * tileDim.x + threadIdx.x - 1;
   int ti = threadIdx.y ; // local indexes
   int tj = threadIdx.x ; //
-                                                     // domain_size = 16 |++++------------| ("-" = celle del dominio; "+" = celle che devono essere aggiornate)
-                                                     // blk_0           |.****.|            ("*" = threads che aggiornano celle dominio; "." = threads che calcolano average)
+                                                     // domain_size = 16 |++++------------| ("-" = domain cells; "+" = cells to be updated)
+                                                     // blk_0           |.****.|            ("*" = threads updating domain cells; "." = threads computing average)
                                                      // blk_0 index i    012345
                                                      //  
-                                                     // domain_size = 16 |----++++--------| ("-" = celle del dominio; "+" = celle che devono essere aggiornate)
-                                                     // blk_1               |.****.|        ("*" = threads che aggiornano celle dominio; "." = threads che calcolano average)
+                                                     // domain_size = 16 |----++++--------| ("-" = domain cells; "+" = cells to be updated)
+                                                     // blk_1               |.****.|        ("*" = threads updating domain cells; "." = threads computing average)
                                                      // blk_1 index i        012345
                                                      //
 
@@ -270,8 +270,8 @@ void sciddicaTFlowsComputation(int i_start, int i_end, int j_start, int j_end, i
     __syncthreads();
   }
 
-  // Only in chunk threads
-  if(ti > 0 and ti < chunkDim.y + 1 and  tj > 0 and tj < chunkDim.x + 1){
+  // Only in tile threads
+  if(ti > 0 and ti < tileDim.y + 1 and  tj > 0 and tj < tileDim.x + 1){
     double f_in_sum = GET(sh_next_shared, blockDim.x, ti, tj);
     SET(Sh_next, c, i, j,GET(Sh_next, c, i, j) + f_in_sum - f_out_sum );
   }

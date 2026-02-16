@@ -1,38 +1,38 @@
 # Tiled Algorithms for Flow-based Stencil Computation
 
-This repository provides alternative tiled algorithms, **CfAMe** (memory-equivalent conflict-free tiled algorithm) and **CfAMo** (memory-optimized conflict-free tiled algorithm), to accelerate flow-based stencil computational models on Nvidia GPUs. 
+This repository provides alternative tiled algorithms, **CfAMe** (memory-equivalent conflict-free tiled algorithm) and **CfAMo** (memory-optimized conflict-free tiled algorithm), to accelerate Cellular Automata (a superclass of flow-based stencil computational models) on Nvidia GPUs. 
 
-The new algorithms are tested on the SciddicaT fluid-flow landslide simulator. The naive and classical tiled implementations, with and without halo cells, of SciddicaT are also provided for comparison.
+The new algorithms are implemented on the SciddicaT fluid-flow landslide simulator. The naive and basic tiled implementations, with and without halo cells, are also implemented for comparison.
 
 The code can be compiled using the `Makefile` provided. To list the available targets, open a terminal window, go to the code directory, type `make`, a blank space, and press the TAB key twice.
-To compile all the executables, use the following commands:
+To compile the executables, use the following commands:
 
 ```
 cd code
 make
 ```
 
-To run the naive implementation (on the standard Tessina simulation with 32x32 threads):
+To run the naive implementation (on the standard Tessina simulation with 16x16 threads):
 
 ```
-make run_cuda
+make run_naive
 ```
 
-To run CfAMe-based implementation (on the standard Tessina simulation with 32x32 threads):
+To run CfAMe-based implementation (on the standard Tessina simulation with 16x16 threads):
 
 ```
-make run_cuda_tiled_halo_sync
+make run_tiled_CfAMe
 ```
 
-To run CfAMo-based implementation (on the standard Tessina simulation with 32x32 threads):
+To run CfAMo-based implementation (on the standard Tessina simulation with 16x16 threads):
 
 ```
-make run_cuda_tiled_halo_sync_priv
+make run_tiled_CfAMo
 ```
 
-To run further experiments, use the run.sh and run_extended.sh:
+To run further experiments, use the run_tessina.sh and run_extended.sh:
 ```
-bash run.sh -steps 4000 -gpu 0
+bash run_tessina.sh -steps 4000 -gpu 0
 ```
 or 
 ```
@@ -47,5 +47,4 @@ The code was developed by:
 
 For information, please write an email to donato.dambrosio [at] unical.it
 
-Please let us know if you use the code in this repository.
-
+Please let us know if you use or simply appreciate the code in this repository.
