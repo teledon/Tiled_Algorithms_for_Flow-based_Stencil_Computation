@@ -3,7 +3,7 @@
 source run_common_code.sh
 
 
-OUTPUT_FILE=results_${SIMULATION_STEPS}steps_`date +"%Y-%m-%d_%T"`.csv
+OUTPUT_FILE=results_tessina_${SIMULATION_STEPS}steps_`date +"%Y-%m-%d_%T"`.csv
 IN_HDR="../data/tessina_header.txt"
 IN_DEM="../data/tessina_dem.txt"
 IN_SRC="../data/tessina_source.txt"
