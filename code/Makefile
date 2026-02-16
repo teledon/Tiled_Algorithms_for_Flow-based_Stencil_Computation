@@ -6,11 +6,11 @@ endif
 HDR=../data/tessina_header.txt
 DEM=../data/tessina_dem.txt
 SRC=../data/tessina_source.txt
-OUT_NAIVE=./tessina_output_naive
-OUT_TILED_BASIC_HALO=./tessina_output_tiled_basic_halo
-OUT_TILED_BASIC_NO_HALO=./tessina_output_tiled_basic_no_halo
-OUT_TILED_CFAME =./tessina_output_tiled_CfAMe
-OUT_TILED_CFAMO =./tessina_output_tiled_CfAMo
+OUT_NAIVE=./output_tessina_naive
+OUT_TILED_BASIC_HALO=./output_tessina_tiled_basic_halo
+OUT_TILED_BASIC_NO_HALO=./output_tessina_tiled_basic_no_halo
+OUT_TILED_CFAME =./output_tessina_tiled_CfAMe
+OUT_TILED_CFAMO =./output_tessina_tiled_CfAMo
 STEPS=4000
 
 BLOCK_SIZE_0 = 16
