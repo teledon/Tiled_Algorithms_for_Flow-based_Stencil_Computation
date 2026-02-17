@@ -312,21 +312,16 @@ int main(int argc, char **argv)
   cudaMemPrefetchAsync(Sf, sizeof(double)*r*c*ADJACENT_CELLS, 0 , NULL);
   cudaDeviceSynchronize();
 
+  dim3 block_size(block_size_d0, block_size_d1, 1);
+  dim3 grid_size(ceil(c/(float)block_size.x), ceil(r/(float)block_size.y), 1);
+  
   util::Timer cl_timer;
   // simulation loop
   for (int s = 0; s < steps; ++s)
   {
-    dim3 block_size_rf(block_size_d0, block_size_d1, 1);
-    dim3 grid_size_rf(ceil(c/(float)block_size_rf.x), ceil(r/(float)block_size_rf.y), 1);
-    sciddicaTResetFlows<<<grid_size_rf,block_size_rf>>>(i_start, i_end, j_start, j_end, r, c, nodata, Sf);
-
-    dim3 block_size_fc(block_size_d0, block_size_d1, 1);
-    dim3 grid_size_fc(ceil(c/(float)block_size_fc.x), ceil(r/(float)block_size_fc.y), 1);
-    sciddicaTFlowsComputation<<<grid_size_fc,block_size_fc>>>(i_start, i_end, j_start, j_end, r, c, nodata, /*Xi, Xj,*/ Sz, Sh, Sf, p_r, p_epsilon);
-
-    dim3 block_size_wu(block_size_d0, block_size_d1, 1);
-    dim3 grid_size_wu(ceil(c/(float)block_size_wu.x), ceil(r/(float)block_size_wu.y), 1);
-    sciddicaTWidthUpdate<<<grid_size_wu,block_size_wu>>>(i_start, i_end, j_start, j_end, r, c, nodata, /*Xi, Xj,*/ Sz, Sh, Sf);
+    sciddicaTResetFlows<<<grid_size,block_size>>>(i_start, i_end, j_start, j_end, r, c, nodata, Sf);
+    sciddicaTFlowsComputation<<<grid_size,block_size>>>(i_start, i_end, j_start, j_end, r, c, nodata, /*Xi, Xj,*/ Sz, Sh, Sf, p_r, p_epsilon);
+    sciddicaTWidthUpdate<<<grid_size,block_size>>>(i_start, i_end, j_start, j_end, r, c, nodata, /*Xi, Xj,*/ Sz, Sh, Sf);
   }
   cudaDeviceSynchronize();
   double cl_time = static_cast<double>(cl_timer.getTimeMilliseconds()) / 1000.0;
@@ -337,9 +332,6 @@ int main(int argc, char **argv)
   saveBinaryGrid2Dr(Sh, r, c, binPath.c_str());// Save Sh to file in binary format
 
   //printf("Releasing memory...\n");
-  // delete[] Sz;
-  // delete[] Sh;
-  // delete[] Sf;
   cudaFree(Sz);
   cudaFree(Sh);
   cudaFree(Sf);

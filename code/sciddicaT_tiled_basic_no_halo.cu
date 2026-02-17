@@ -378,9 +378,6 @@ int main(int argc, char **argv)
   saveBinaryGrid2Dr(Sh, r, c, binPath.c_str());// Save Sh to file in binary format
 
   //printf("Releasing memory...\n");
-  // delete[] Sz;
-  // delete[] Sh;
-  // delete[] Sf;
   cudaFree(Sz);
   cudaFree(Sh);
   cudaFree(Sf);

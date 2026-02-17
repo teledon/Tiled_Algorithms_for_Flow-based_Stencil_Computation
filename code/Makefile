@@ -1,8 +1,14 @@
+############
+# COMPILER #
+############
 ifndef CPPC
 	CPPC=g++
 endif
 
 
+###########
+# DATASET #
+###########
 HDR=../data/tessina_header.txt
 DEM=../data/tessina_dem.txt
 SRC=../data/tessina_source.txt
@@ -13,14 +19,15 @@ OUT_TILED_CFAME =./output_tessina_tiled_CfAMe
 OUT_TILED_CFAMO =./output_tessina_tiled_CfAMo
 STEPS=4000
 
-BLOCK_SIZE_0 = 16
-BLOCK_SIZE_1 = 16
+
+###############
+# COMPILATION #
+###############
 EXEC_NAIVE = sciddicaT_naive
 EXEC_TILED_BASIC_HALO = sciddicaT_tiled_basic_halo
 EXEC_TILED_BASIC_NO_HALO = sciddicaT_tiled_basic_no_halo
 EXEC_TILED_CFAME = sciddicaT_tiled_CfAMe
 EXEC_TILED_CFAMO = sciddicaT_tiled_CfAMo
-
 
 EXECUTABLES = $(EXEC_NAIVE) $(EXEC_TILED_BASIC_HALO) $(EXEC_TILED_BASIC_NO_HALO) $(EXEC_TILED_CFAME) $(EXEC_TILED_CFAMO)
 
@@ -39,6 +46,14 @@ $(EXEC_TILED_CFAMO): sciddicaT_tiled_CfAMo.cu
 	nvcc $^ -o $@ -w
 
 
+#############
+# EXECUTION #
+#############
+BLOCK_SIZE_0 = 16
+BLOCK_SIZE_1 = 16
+
+.PHONY: run_naive run_tiled_basic_halo run_tiled_basic_no_halo run_tiled_CfAMe run_tiled_CfAMo
+
 run_naive: $(EXEC_NAIVE)
 	./$(EXEC_NAIVE) $(HDR) $(DEM) $(SRC) $(OUT_NAIVE) $(STEPS) $(BLOCK_SIZE_0) $(BLOCK_SIZE_1) && md5sum $(OUT_NAIVE) && cat $(HDR) $(OUT_NAIVE) > $(OUT_NAIVE).dat && rm $(OUT_NAIVE)
 
@@ -54,6 +69,10 @@ run_tiled_CfAMe: $(EXEC_TILED_CFAME)
 run_tiled_CfAMo: $(EXEC_TILED_CFAMO)
 	./$(EXEC_TILED_CFAMO) $(HDR) $(DEM) $(SRC) $(OUT_TILED_CFAMO) $(STEPS) $(BLOCK_SIZE_0) $(BLOCK_SIZE_1) && md5sum $(OUT_TILED_CFAMO) && cat $(HDR) $(OUT_TILED_CFAMO) > $(OUT_TILED_CFAMO).dat && rm $(OUT_TILED_CFAMO)
 
+
+############
+# CLEAN UP #
+############
 
 clean:
 	rm -f $(EXECUTABLES) *.o *output*
