@@ -181,10 +181,10 @@ void sciddicaTFlowsComputation(int i_start, int i_end, int j_start, int j_end, i
                                                      //
 
   extern __shared__ uint8_t S[];
-  double* sh_next_shared = (double*) S;
+  double* Sf_shared = (double*) S;
 
   for(int n = 0; n < 4; ++n)
-    BUF_SET(sh_next_shared,  blockDim.y,  blockDim.x, n, threadIdx.y, threadIdx.x, 0.0);
+    BUF_SET(Sf_shared,  blockDim.y,  blockDim.x, n, threadIdx.y, threadIdx.x, 0.0);
  
   if (i < i_start or i >= i_end or j < j_start or j >= j_end)
     return;
@@ -257,8 +257,8 @@ void sciddicaTFlowsComputation(int i_start, int i_end, int j_start, int j_end, i
     if (!eliminated_cells[n])
       {
         f_out = (average - u[n]) * p_r;
-        double sh_next_shared_prev = BUF_GET(sh_next_shared, blockDim.y, blockDim.x, n - 1, ti, tj);
-        BUF_SET(sh_next_shared, blockDim.y, blockDim.x, n - 1, ti, tj, sh_next_shared_prev + f_out);
+        double f_out_shared = BUF_GET(Sf_shared, blockDim.y, blockDim.x, n - 1, ti, tj);
+        BUF_SET(Sf_shared, blockDim.y, blockDim.x, n - 1, ti, tj, f_out_shared + f_out);
       }
   }
   
@@ -267,10 +267,10 @@ void sciddicaTFlowsComputation(int i_start, int i_end, int j_start, int j_end, i
   // Only in tile threads
   if(ti > 0 and ti < tileDim.y + 1 and  tj > 0 and tj < tileDim.x + 1){
     double h_next =  GET(Sh, c, i, j) ;
-    h_next += BUF_GET(sh_next_shared, blockDim.y, blockDim.x, 3, ti+Xi[1], tj+Xj[1]) - BUF_GET(sh_next_shared, blockDim.y, blockDim.x, 0, ti, tj);
-    h_next += BUF_GET(sh_next_shared, blockDim.y, blockDim.x, 2, ti+Xi[2], tj+Xj[2]) - BUF_GET(sh_next_shared, blockDim.y, blockDim.x, 1, ti, tj);
-    h_next += BUF_GET(sh_next_shared, blockDim.y, blockDim.x, 1, ti+Xi[3], tj+Xj[3]) - BUF_GET(sh_next_shared, blockDim.y, blockDim.x, 2, ti, tj);
-    h_next += BUF_GET(sh_next_shared, blockDim.y, blockDim.x, 0, ti+Xi[4], tj+Xj[4]) - BUF_GET(sh_next_shared, blockDim.y, blockDim.x, 3, ti, tj);
+    h_next += BUF_GET(Sf_shared, blockDim.y, blockDim.x, 3, ti+Xi[1], tj+Xj[1]) - BUF_GET(Sf_shared, blockDim.y, blockDim.x, 0, ti, tj);
+    h_next += BUF_GET(Sf_shared, blockDim.y, blockDim.x, 2, ti+Xi[2], tj+Xj[2]) - BUF_GET(Sf_shared, blockDim.y, blockDim.x, 1, ti, tj);
+    h_next += BUF_GET(Sf_shared, blockDim.y, blockDim.x, 1, ti+Xi[3], tj+Xj[3]) - BUF_GET(Sf_shared, blockDim.y, blockDim.x, 2, ti, tj);
+    h_next += BUF_GET(Sf_shared, blockDim.y, blockDim.x, 0, ti+Xi[4], tj+Xj[4]) - BUF_GET(Sf_shared, blockDim.y, blockDim.x, 3, ti, tj);
     SET(Sh_next, c, i, j, h_next );
   }
 
