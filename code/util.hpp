@@ -210,6 +210,18 @@ public:
 };
 #endif
 
+
+// ----------------------------------------------------------------------------
+// CUDA utilities
+// ----------------------------------------------------------------------------
+void init_dim3( dim3& v , unsigned int x, unsigned int y, unsigned int z )
+{
+    v.x = x;
+    v.y = y;
+    v.z = z;
+}
+
+
 } // namespace util
 
 #endif // __UTIL_HDR
