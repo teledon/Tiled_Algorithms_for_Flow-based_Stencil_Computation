@@ -151,7 +151,7 @@ protected:
         { sciddicaTFlowsComputation<<<grid_size_tiled, block_size, shmem_size>>>(i_start, i_end, j_start, j_end, r, c, Sz, Sh, Sh_next); }
     
     inline void on_step_end()
-        { cudaMemcpy(Sh, Sh_next, sizeof(real_t)*r*c, cudaMemcpyDeviceToDevice); }
+        { swap(Sh, Sh_next); }
 
 private:
     real_t *Sh_next;

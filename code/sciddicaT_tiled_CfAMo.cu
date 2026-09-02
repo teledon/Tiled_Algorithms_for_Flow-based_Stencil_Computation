@@ -122,7 +122,7 @@ void sciddicaTFlowsComputation(const integer_t i_start, const integer_t i_end, c
     if (ti > 0 and ti < tileDim.y + 1 and  tj > 0 and tj < tileDim.x + 1)
     {
         real_t f_in_sum = GET(sh_next_shared, blockDim.x, ti, tj);
-        SET(Sh_next, c, i, j,GET(Sh_next, c, i, j) + f_in_sum - f_out_sum );
+        SET(Sh_next, c, i, j, GET(Sh, c, i, j) + f_in_sum - f_out_sum );
     }
 
     #undef ti
@@ -155,7 +155,7 @@ protected:
         { sciddicaTFlowsComputation<<<grid_size_tiled, block_size, shmem_size>>>(i_start, i_end, j_start, j_end, r, c, Sz, Sh, Sh_next); }
     
     inline void on_step_end()
-        { cudaMemcpy(Sh, Sh_next, sizeof(double)*r*c, cudaMemcpyDeviceToDevice); }
+        { swap(Sh, Sh_next); }
 
 private:
     real_t *Sh_next;
