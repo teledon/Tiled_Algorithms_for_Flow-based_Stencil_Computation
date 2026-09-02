@@ -46,6 +46,7 @@ __constant__ int8_t Xj[5]; // Xj: von Neuman neighborhood col coordinates (see b
     #define P_EPSILON 0.001f
 #endif
 #define ADJACENT_CELLS 4
+#define NEIGBORHOOD_SIZE 5
 #define STRLEN 256
 
 
@@ -212,13 +213,9 @@ public:
 
             Sz = addLayer2D(r, c);                 // Allocates the Sz substate grid
             Sh = addLayer2D(r, c);                 // Allocates the Sh substate grid
-            Sf = addLayer2D(ADJACENT_CELLS* r, c); // Allocates the Sf substates grid, 
-                                                   //   having one layer for each adjacent cell
             
             loadGrid2D(Sz, r, c, argv[DEM_PATH_ID]);   // Load Sz from file
             loadGrid2D(Sh, r, c, argv[SOURCE_PATH_ID]);// Load Sh from file
-
-            derivedSciddicaTCuda.check_inargs();
         }
     
     int execute()
@@ -232,21 +229,23 @@ public:
         cudaMemcpyToSymbol(Xi, h_Xi, 5*sizeof(int8_t)); // Copy Xi to DEVICE in CONSTANT memory
         cudaMemcpyToSymbol(Xj, h_Xj, 5*sizeof(int8_t)); // Copy Xj to DEVICE in CONSTANT memory
 
-        cudaMemPrefetchAsync(Sz, sizeof(real_t)*r*c, 0 , NULL);
-        cudaMemPrefetchAsync(Sh, sizeof(real_t)*r*c, 0 , NULL);
-        cudaMemPrefetchAsync(Sf, sizeof(real_t)*r*c*ADJACENT_CELLS, 0 , NULL);
-        cudaDeviceSynchronize();
-
         util::init_dim3( block_size, block_size_d0, block_size_d1, 1 );
         util::init_dim3( grid_size, ceil(c/(float)block_size.x), ceil(r/(float)block_size.y), 1 );
+
+        derivedSciddicaTCuda.init_extras();
+
+        cudaMemPrefetchAsync(Sz, sizeof(real_t)*r*c, 0 , NULL);
+        cudaMemPrefetchAsync(Sh, sizeof(real_t)*r*c, 0 , NULL);
+        cudaDeviceSynchronize();
         
         util::Timer cl_timer;
         // simulation loop
         for (int s = 0; s < steps; ++s)
         {
-            sciddicaTResetFlows<<<grid_size,block_size>>>(i_start, i_end, j_start, j_end, r, c, Sf);
+            derivedSciddicaTCuda.on_step_start();
             derivedSciddicaTCuda.launch_flows_computation_kernel();
             derivedSciddicaTCuda.launch_width_update_kernel();
+            derivedSciddicaTCuda.on_step_end();
         }
         cudaDeviceSynchronize();
         double cl_time = static_cast<double>(cl_timer.getTimeMilliseconds()) / 1000.0;
@@ -259,16 +258,18 @@ public:
         //printf("Releasing memory...\n");
         cudaFree(Sz);
         cudaFree(Sh);
-        cudaFree(Sf);
+        derivedSciddicaTCuda.free_extras();
 
         return 0;
     }
 
 protected:
-    void check_inargs() const {}
     void init_extras() {}
+    void free_extras() {}
+    inline void on_step_start() {}
     inline void launch_flows_computation_kernel() {}
     inline void launch_width_update_kernel() {}
+    inline void on_step_end() {}
 
     integer_t  r, c;  // grid rows and columns
     integer_t i_start, i_end;  // [i_start,i_end[: kernels application range along the rows
@@ -277,7 +278,6 @@ protected:
     
     real_t *Sz;  // Sz: substate (grid) containing the cells' altitude a.s.l.
     real_t *Sh;  // Sh: substate (grid) containing the cells' flow thickness
-    real_t *Sf;  // Sf: 4 substates containing the flows towards the 4 neighs
     
     int steps;  //steps: simulation steps
     
