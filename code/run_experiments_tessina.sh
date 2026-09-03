@@ -5,7 +5,7 @@ IN_HDR="../data/tessina_header.txt"
 IN_DEM="../data/tessina_dem.txt"
 IN_SRC="../data/tessina_source.txt"
 
-source run_common_code.sh
+source ./run_common_code.sh -steps 4000 -rep 10 -gpu 0
 
 EXE="./sciddicaT_naive"
 OUT="./output_tessina_naive"

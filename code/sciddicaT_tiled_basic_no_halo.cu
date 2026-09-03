@@ -99,7 +99,7 @@ void sciddicaTWidthUpdate(const integer_t i_start, const integer_t i_end, const 
     integer_t i = blockIdx.y * blockDim.y + threadIdx.y;
     integer_t j = blockIdx.x * blockDim.x + threadIdx.x;
 
-    extern __shared__ double Sf_shared[];
+    extern __shared__ real_t Sf_shared[];
 
     if (i < i_start or i >= i_end or j < j_start or j >= j_end)
     {

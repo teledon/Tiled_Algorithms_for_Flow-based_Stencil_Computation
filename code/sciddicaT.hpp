@@ -141,7 +141,7 @@ bool saveBinaryGrid2Dr(real_t *M, integer_t rows, integer_t columns, const char 
   return true;
 }
 
-double* addLayer2D(integer_t rows, integer_t columns)
+real_t* addLayer2D(integer_t rows, integer_t columns)
 {
   //double *tmp = (double *)malloc(sizeof(double) * rows * columns);
   real_t *tmp;
