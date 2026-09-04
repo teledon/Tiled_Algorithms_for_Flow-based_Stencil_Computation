@@ -139,6 +139,9 @@ protected:
         util::init_dim3( grid_size_tiled, ceil(c/(float)(block_size.x-2)), ceil(r/(float)(block_size.y-2)), 1 );
         shmem_size_fc = 2 * block_size.x * block_size.y * sizeof(real_t);
         shmem_size_wu = ADJACENT_CELLS * block_size.x * block_size.y * sizeof(real_t);
+
+        if (!util::checkShmemSizePerBlock(shmem_size_fc) || !util::checkShmemSizePerBlock(shmem_size_wu))
+            exit(EXIT_FAILURE);
     }
 
     void free_extras()

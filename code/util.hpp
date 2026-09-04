@@ -222,6 +222,24 @@ void init_dim3( dim3& v , unsigned int x, unsigned int y, unsigned int z )
 }
 
 
+bool checkShmemSizePerBlock(size_t shmem_requested)
+{
+    int device;
+    cudaDeviceProp prop;
+    cudaGetDevice(&device);
+    cudaGetDeviceProperties(&prop, device);
+    if (shmem_requested > prop.sharedMemPerBlock)
+    {
+        printf("Error: shared memory per block exceeded on %s\n", prop.name);
+        printf("\tShared memory per block: %f MiB\n", prop.sharedMemPerBlock/(float)1024);
+        printf("\tRequested shared memory per block: %f MiB\n", shmem_requested/(float)1024);
+        printf("Execution aborted.\n");
+        return false;
+    }
+    return true;
+}
+
+
 } // namespace util
 
 #endif // __UTIL_HDR

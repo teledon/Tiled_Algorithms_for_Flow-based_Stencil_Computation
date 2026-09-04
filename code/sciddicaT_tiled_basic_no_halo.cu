@@ -149,6 +149,9 @@ protected:
 
         shmem_size_fc = 2 * block_size.x * block_size.y * sizeof(real_t);
         shmem_size_wu = ADJACENT_CELLS * block_size.x * block_size.y * sizeof(real_t);
+
+        if (!util::checkShmemSizePerBlock(shmem_size_fc) || !util::checkShmemSizePerBlock(shmem_size_wu))
+            exit(EXIT_FAILURE);
     }
 
     void free_extras()
