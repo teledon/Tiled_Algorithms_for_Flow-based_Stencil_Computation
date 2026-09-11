@@ -134,7 +134,7 @@ protected:
     {
         Sf = addLayer2D(ADJACENT_CELLS* r, c); // Allocates the Sf substates grid, 
                                                //   having one layer for each adjacent cell
-        cudaMemPrefetchAsync(Sf, sizeof(real_t)*r*c*ADJACENT_CELLS, 0 , NULL);
+        memPrefetch(Sf, sizeof(real_t)*r*c*ADJACENT_CELLS);
         
         util::init_dim3( grid_size_tiled, ceil(c/(float)(block_size.x-2)), ceil(r/(float)(block_size.y-2)), 1 );
         shmem_size_fc = 2 * block_size.x * block_size.y * sizeof(real_t);

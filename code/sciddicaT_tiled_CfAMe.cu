@@ -138,7 +138,7 @@ protected:
     {
         Sh_next = addLayer2D(r, c);
         memcpy(Sh_next, Sh, sizeof(real_t) * r * c);
-        cudaMemPrefetchAsync(Sh_next, sizeof(real_t)*r*c, 0 , NULL);
+        memPrefetch(Sh_next, sizeof(real_t)*r*c);
         
         util::init_dim3( grid_size_tiled, ceil(c/(float)(block_size.x - 2)), ceil(r/(float)(block_size.y - 2)), 1 );
         shmem_size = block_size.x * block_size.y * sizeof(real_t) * ADJACENT_CELLS;

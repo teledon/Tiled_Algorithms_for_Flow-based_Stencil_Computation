@@ -2,6 +2,7 @@
 #define SCIDDICA_T_H
 
 #include "types.h"
+#include <cuda_runtime.h>
 
 
 // ----------------------------------------------------------------------------
@@ -139,7 +140,7 @@ bool saveBinaryGrid2Dr(real_t *M, integer_t rows, integer_t columns, const char 
   fclose(f);
 
   return true;
-}
+  }
 
 real_t* addLayer2D(integer_t rows, integer_t columns)
 {
@@ -149,6 +150,19 @@ real_t* addLayer2D(integer_t rows, integer_t columns)
   if (!tmp)
     return NULL;
   return tmp;
+}
+
+
+void memPrefetch(real_t *buff, size_t nbytes)
+{
+#if CUDART_VERSION >= 13000
+    cudaMemLocation location;
+    location.type = cudaMemLocationTypeDevice;
+    location.id = 0;
+    cudaMemPrefetchAsync(buff, nbytes, location , 0, NULL);
+#else
+    cudaMemPrefetchAsync(buff, nbytes, 0, NULL);
+#endif
 }
 
 // ----------------------------------------------------------------------------
@@ -234,8 +248,8 @@ public:
 
         derivedSciddicaTCuda.init_extras();
 
-        cudaMemPrefetchAsync(Sz, sizeof(real_t)*r*c, 0 , NULL);
-        cudaMemPrefetchAsync(Sh, sizeof(real_t)*r*c, 0 , NULL);
+        memPrefetch(Sz, sizeof(real_t)*r*c);
+        memPrefetch(Sh, sizeof(real_t)*r*c);
         cudaDeviceSynchronize();
         
         util::Timer cl_timer;
