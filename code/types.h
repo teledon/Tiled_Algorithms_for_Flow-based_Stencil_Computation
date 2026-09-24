@@ -6,7 +6,6 @@
 //
 // data type for real-valued variables
 //
-#define DOUBLE_PRECISION  // uncomment this line to switch from float to double type
 #ifdef DOUBLE_PRECISION
     typedef double real_t;
 #else
