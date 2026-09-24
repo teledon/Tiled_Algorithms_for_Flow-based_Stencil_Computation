@@ -253,16 +253,34 @@ public:
         cudaDeviceSynchronize();
         
         util::Timer cl_timer;
+
+        cudaEvent_t flow_start, flow_stop;
+        cudaEventCreate(&flow_start);
+        cudaEventCreate(&flow_stop);
+        float total_elapsed_flowtime = 0.0f;  // in ms
+
         // simulation loop
         for (int s = 0; s < steps; ++s)
         {
             derivedSciddicaTCuda.on_step_start();
+            
+            cudaEventRecord(flow_start);
+            
             derivedSciddicaTCuda.launch_flows_computation_kernel();
             derivedSciddicaTCuda.launch_width_update_kernel();
+
+            cudaEventRecord(flow_stop);
+            cudaEventSynchronize(flow_stop);
+            float elapsed_flowtime = 0.0f;  // in ms
+            cudaEventElapsedTime(&elapsed_flowtime, flow_start, flow_stop);
+            total_elapsed_flowtime += elapsed_flowtime;
+
             derivedSciddicaTCuda.on_step_end();
         }
+
         cudaDeviceSynchronize();
-        double cl_time = static_cast<double>(cl_timer.getTimeMilliseconds()) / 1000.0;
+        double cl_time = static_cast<double>(total_elapsed_flowtime) / 1.0e3;
+        //double cl_time = static_cast<double>(cl_timer.getTimeMilliseconds()) / 1000.0;
         printf(" %2d; %2d; %7.3f\n", block_size_d0, block_size_d1, cl_time);
 
         saveGrid2Dr(Sh, r, c, output_path);// Save Sh to file
