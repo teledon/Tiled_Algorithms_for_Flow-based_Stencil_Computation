@@ -32,6 +32,7 @@ EXEC_TILED_CFAME = sciddicaT_tiled_CfAMe
 EXEC_TILED_CFAMO = sciddicaT_tiled_CfAMo
 
 REAL_PRECISION_FLAG=-DDOUBLE_PRECISION
+FLOWTIME_ONLY_FLAG=-DFLOWTIME_ONLY
 
 EXECUTABLES = $(EXEC_NAIVE) $(EXEC_TILED_BASIC_HALO) $(EXEC_TILED_BASIC_NO_HALO) $(EXEC_TILED_CFAME) $(EXEC_TILED_CFAMO)
 
@@ -39,15 +40,15 @@ default: all
 all: $(EXECUTABLES)
 
 $(EXEC_NAIVE): sciddicaT_naive.cu
-	nvcc $^ -o $@ -O3 -w $(REAL_PRECISION_FLAG)
+	nvcc $^ -o $@ -O3 -w $(REAL_PRECISION_FLAG) $(FLOWTIME_ONLY_FLAG)
 $(EXEC_TILED_BASIC_HALO): sciddicaT_tiled_basic_halo.cu
-	nvcc $^ -o $@ -O3 -w $(REAL_PRECISION_FLAG)
+	nvcc $^ -o $@ -O3 -w $(REAL_PRECISION_FLAG) $(FLOWTIME_ONLY_FLAG)
 $(EXEC_TILED_BASIC_NO_HALO): sciddicaT_tiled_basic_no_halo.cu
-	nvcc $^ -o $@ -O3 -w $(REAL_PRECISION_FLAG)
+	nvcc $^ -o $@ -O3 -w $(REAL_PRECISION_FLAG) $(FLOWTIME_ONLY_FLAG)
 $(EXEC_TILED_CFAME): sciddicaT_tiled_CfAMe.cu
-	nvcc $^ -o $@ -O3 -w $(REAL_PRECISION_FLAG)
+	nvcc $^ -o $@ -O3 -w $(REAL_PRECISION_FLAG) $(FLOWTIME_ONLY_FLAG)
 $(EXEC_TILED_CFAMO): sciddicaT_tiled_CfAMo.cu
-	nvcc $^ -o $@ -w $(REAL_PRECISION_FLAG)
+	nvcc $^ -o $@ -w $(REAL_PRECISION_FLAG) $(FLOWTIME_ONLY_FLAG)
 
 
 #############
