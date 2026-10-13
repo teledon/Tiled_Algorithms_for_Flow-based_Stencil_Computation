@@ -19,17 +19,19 @@ OUT_TILED_CFAME =./output_tessina_tiled_CfAMe
 OUT_TILED_CFAMO =./output_tessina_tiled_CfAMo
 OUT_ROOFLINE=./output_tessina
 # OUT_ROOFLINE is only used temporarily during roofline coords computation
+
 STEPS=100
+NCU_STEPS=50
 
 
 ###############
 # COMPILATION #
 ###############
 EXEC_NAIVE = sciddicaT_naive
-EXEC_TILED_BASIC_HALO = sciddicaT_tiled_basic_halo
-EXEC_TILED_BASIC_NO_HALO = sciddicaT_tiled_basic_no_halo
-EXEC_TILED_CFAME = sciddicaT_tiled_CfAMe
-EXEC_TILED_CFAMO = sciddicaT_tiled_CfAMo
+EXEC_TILED_BASIC_HALO = sciddicaT_tiled
+EXEC_TILED_BASIC_NO_HALO = sciddicaT_no_halo
+EXEC_TILED_CFAME = sciddicaT_cfame
+EXEC_TILED_CFAMO = sciddicaT_cfamo
 
 REAL_PRECISION_FLAG=-DDOUBLE_PRECISION
 FLOWTIME_ONLY_FLAG=-DFLOWTIME_ONLY
@@ -85,30 +87,43 @@ RL_NCU_RUNTIME_METRICS=sm__cycles_elapsed.avg,sm__cycles_elapsed.avg.per_second
 RL_NCU_PARAMS=--section-folder ./sections --print-summary per-kernel --csv
 RL_NCU_LAUNCH_OPT=TMP=$(HOME)/tmp ncu $(RL_NCU_FILTER) $(RL_NCU_PARAMS) --metrics $(RL_NCU_OPT_METRICS)
 RL_NCU_LAUNCH_RUNTIME=TMP=$(HOME)/tmp ncu $(RL_NCU_FILTER) $(RL_NCU_PARAMS) --metrics $(RL_NCU_RUNTIME_METRICS)
-RL_EXE_PARAMS=$(HDR) $(DEM) $(SRC) $(OUT_ROOFLINE) $(STEPS) $(BLOCK_SIZE_0) $(BLOCK_SIZE_1)
+RL_EXE_PARAMS=$(HDR) $(DEM) $(SRC) $(OUT_ROOFLINE) $(NCU_STEPS) $(BLOCK_SIZE_0) $(BLOCK_SIZE_1)
+RL_CREATE_CHART_PYSCRIPT=../../Efficient_Execution_of_Flow-Based_Low-Order_Stencil-like_Algorithms_on_GPU_experiments/Roofline/scripts/roofline_coords.py
 
 .PHONY: roofline
 
 roofline: $(RL_EXE)
-	$(RL_NCU_LAUNCH_OPT) --log-file roofline/prof_opt_$(RL_EXE).csv ./$(RL_EXE) $(RL_EXE_PARAMS)
-	$(RL_NCU_LAUNCH_RUNTIME) --log-file roofline/prof_runtime_$(RL_EXE).csv ./$(RL_EXE) $(RL_EXE_PARAMS)
-	python3 roofline/roofline.py roofline/prof_opt_$(RL_EXE).csv roofline/prof_runtime_$(RL_EXE).csv
-	rm roofline/prof_opt_$(RL_EXE).csv roofline/prof_runtime_$(RL_EXE).csv $(OUT_ROOFLINE)*
+	mkdir -p roofline
+	PREC_TXTs="float double"; \
+	for PREC_TXT in $$PREC_TXTs; do \
+		mkdir -p "traces/$$PREC_TXT"; \
+		if [ "$$PREC_TXT" = "float" ]; then \
+			PREC=""; \
+		else \
+			PREC="-DDOUBLE_PRECISION"; \
+		fi; \
+		$(MAKE) clean; \
+		$(MAKE) $(RL_EXE) REAL_PRECISION_FLAG="$$PREC"; \
+		$(RL_NCU_LAUNCH_OPT) --log-file "roofline/prof_opt_$(RL_EXE)_$$PREC_TXT.csv" ./$(RL_EXE) $(RL_EXE_PARAMS); \
+		$(RL_NCU_LAUNCH_RUNTIME) --log-file "roofline/prof_runtime_$(RL_EXE)_$$PREC_TXT.csv" ./$(RL_EXE) $(RL_EXE_PARAMS); \
+		python3 $(RL_CREATE_CHART_PYSCRIPT) sciddicaT "$$PREC_TXT" "roofline/prof_opt_$(RL_EXE)_$$PREC_TXT.csv" "roofline/prof_runtime_$(RL_EXE)_$$PREC_TXT.csv"; \
+	done
+	rm -r roofline
 
 rl_naive: RL_EXE = $(EXEC_NAIVE)
-rl_naive: $(EXEC_NAIVE) roofline
+rl_naive: roofline
 
-rl_tiled_basic_halo: RL_EXE = $(EXEC_TILED_BASIC_HALO)
-rl_tiled_basic_halo: $(EXEC_TILED_BASIC_HALO) roofline
+rl_tiled: RL_EXE = $(EXEC_TILED_BASIC_HALO)
+rl_tiled: roofline
 
-rl_tiled_basic_no_halo: RL_EXE = $(EXEC_TILED_BASIC_NO_HALO)
-rl_tiled_basic_no_halo: $(EXEC_TILED_BASIC_NO_HALO) roofline
+rl_no_halo: RL_EXE = $(EXEC_TILED_BASIC_NO_HALO)
+rl_no_halo: roofline
 
-rl_tiled_CfAMe: RL_EXE = $(EXEC_TILED_CFAME)
-rl_tiled_CfAMe: $(EXEC_TILED_CFAME) roofline
+rl_cfame: RL_EXE = $(EXEC_TILED_CFAME)
+rl_cfame: roofline
 
-rl_tiled_CfAMo: RL_EXE = $(EXEC_TILED_CFAMO)
-rl_tiled_CfAMo: $(EXEC_TILED_CFAMO) roofline
+rl_cfamo: RL_EXE = $(EXEC_TILED_CFAMO)
+rl_cfamo: roofline
 
 
 ############
