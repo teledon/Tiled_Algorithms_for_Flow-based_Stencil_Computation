@@ -126,6 +126,49 @@ rl_cfamo: RL_EXE = $(EXEC_TILED_CFAMO)
 rl_cfamo: roofline
 
 
+###############################################################################
+# TRACE DATA                                                                  #
+###############################################################################
+TRACE_TIME_METRICS="smsp__warp_issue_stalled_math_pipe_throttle_per_warp_active.ratio,smsp__warp_issue_stalled_long_scoreboard_per_warp_active.ratio,smsp__warp_issue_stalled_lg_throttle_per_warp_active.ratio,smsp__warp_issue_stalled_short_scoreboard_per_warp_active.ratio,smsp__warp_issue_stalled_mio_throttle_per_warp_active.ratio,smsp__warp_issue_stalled_barrier_per_warp_active.ratio,smsp__warps_active.sum"
+TRACE_SCHEDULE_METRICS="launch__block,launch__grid_size,sm__ctas_active.avg,sm__cycles_active.avg,gpu__time_duration.sum,device__attribute_multiprocessor_count"
+TRACE_EXE_PARAMS=$(HDR) $(DEM) $(SRC) $(OUT_ROOFLINE) $(NCU_STEPS) $(BLOCK_SIZE_0) $(BLOCK_SIZE_1)
+TRACE_TIME_CHART_PYSCRIPT=../../Efficient_Execution_of_Flow-Based_Low-Order_Stencil-like_Algorithms_on_GPU_experiments/Trace/scripts/trace.py
+
+.PHONY: trace
+
+trace: $(TRACE_EXE)
+	mkdir -p traces
+	PREC_TXTs="float double"; \
+	for PREC_TXT in $$PREC_TXTs; do \
+		mkdir -p "traces/$$PREC_TXT"; \
+		if [ "$$PREC_TXT" = "float" ]; then \
+			PREC=""; \
+		else \
+			PREC="-DDOUBLE_PRECISION"; \
+		fi; \
+		$(MAKE) clean; \
+		$(MAKE) $(TRACE_EXE) REAL_PRECISION_FLAG="$$PREC"; \
+		TMP=$(HOME)/tmp ncu --kernel-name "regex:FlowsComputation|WidthUpdate" --section-folder ./sections --metrics $(TRACE_TIME_METRICS) --print-summary per-kernel --csv --log-file "traces/$$PREC_TXT/$(TRACE_EXE).time" $(TRACE_EXE) $(TRACE_EXE_PARAMS); \
+		TMP=$(HOME)/tmp ncu --kernel-name "regex:FlowsComputation|WidthUpdate" --section-folder ./sections --metrics $(TRACE_SCHEDULE_METRICS) --print-summary per-kernel --csv --log-file "traces/$$PREC_TXT/$(TRACE_EXE).sched" $(TRACE_EXE) $(TRACE_EXE_PARAMS); \
+		$(TRACE_TIME_CHART_PYSCRIPT) sciddicaT "$(BLOCK_SIZE_0)x$(BLOCK_SIZE_1)" "$$PREC_TXT" "./traces/$$PREC_TXT"; \
+	done
+
+trace_naive: TRACE_EXE = $(EXEC_NAIVE)
+trace_naive: trace
+
+trace_tiled: TRACE_EXE = $(EXEC_TILED_BASIC_HALO)
+trace_tiled: trace
+
+trace_no_halo: TRACE_EXE = $(EXEC_TILED_BASIC_NO_HALO)
+trace_no_halo: trace
+
+trace_cfame: TRACE_EXE = $(EXEC_TILED_CFAME)
+trace_cfame: trace
+
+trace_cfamo: TRACE_EXE = $(EXEC_TILED_CFAMO)
+trace_cfamo: trace
+
+
 ############
 # CLEAN UP #
 ############

@@ -5,6 +5,9 @@
 *.swp
 *.xopp
 *temp*
+*results*
+*sections*
+*traces*
 nohup.out
 results*.csv
 sciddicaTcuda
