@@ -18,7 +18,7 @@ REAL_PRECISION="$7"
 GPU_ID="$9"
 EXE="./$1"
 OUT="./output_tessina_$1"
-OUTPUT_FILE=results/results_$1_${REAL_PRECISION}_${SIMULATION_STEPS}steps_`date +"%Y-%m-%d_%H-%M-%S"`.csv
+OUTPUT_FILE=results/results_$1_${REAL_PRECISION}_${SIMULATION_STEPS}steps.csv  #_`date +"%Y-%m-%d_%H-%M-%S"`.csv
 
 IN_HDR="../data/tessina_header.txt"
 IN_DEM="../data/tessina_dem.txt"

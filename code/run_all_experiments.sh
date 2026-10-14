@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 
 NUM_REPS=10
@@ -29,10 +29,10 @@ for PREC in "${PREC_FLAGS[@]}"; do
     make REAL_PRECISION_FLAG="$PREC"
 
     bash run_experiment.sh sciddicaT_naive -steps $STEPS -rep $NUM_REPS -prec $PRECISION -gpu 0
-    bash run_experiment.sh sciddicaT_tiled_basic_halo -steps $STEPS -rep $NUM_REPS -prec $PRECISION -gpu 0
-    bash run_experiment.sh sciddicaT_tiled_basic_no_halo -steps $STEPS -rep $NUM_REPS -prec $PRECISION -gpu 0
-    bash run_experiment.sh sciddicaT_tiled_CfAMe -steps $STEPS -rep $NUM_REPS -prec $PRECISION -gpu 0 
-    bash run_experiment.sh sciddicaT_tiled_CfAMo -steps $STEPS -rep $NUM_REPS -prec $PRECISION -gpu 0
+    bash run_experiment.sh sciddicaT_tiled -steps $STEPS -rep $NUM_REPS -prec $PRECISION -gpu 0
+    bash run_experiment.sh sciddicaT_no_halo -steps $STEPS -rep $NUM_REPS -prec $PRECISION -gpu 0
+    bash run_experiment.sh sciddicaT_cfame -steps $STEPS -rep $NUM_REPS -prec $PRECISION -gpu 0 
+    bash run_experiment.sh sciddicaT_cfamo -steps $STEPS -rep $NUM_REPS -prec $PRECISION -gpu 0
 
 done
 
