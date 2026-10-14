@@ -94,6 +94,8 @@ RL_CREATE_CHART_PYSCRIPT=../../Efficient_Execution_of_Flow-Based_Low-Order_Stenc
 
 roofline: $(RL_EXE)
 	mkdir -p roofline
+	mkdir -p sections
+	mkdir -p $(HOME)/tmp
 	PREC_TXTs="float double"; \
 	for PREC_TXT in $$PREC_TXTs; do \
 		mkdir -p "traces/$$PREC_TXT"; \
@@ -138,6 +140,8 @@ TRACE_TIME_CHART_PYSCRIPT=../../Efficient_Execution_of_Flow-Based_Low-Order_Sten
 
 trace: $(TRACE_EXE)
 	mkdir -p traces
+	mkdir -p sections
+	mkdir -p $(HOME)/tmp
 	PREC_TXTs="float double"; \
 	for PREC_TXT in $$PREC_TXTs; do \
 		mkdir -p "traces/$$PREC_TXT"; \
