@@ -110,7 +110,6 @@ roofline: $(RL_EXE)
 		$(RL_NCU_LAUNCH_RUNTIME) --log-file "roofline/prof_runtime_$(RL_EXE)_$$PREC_TXT.csv" ./$(RL_EXE) $(RL_EXE_PARAMS); \
 		python3 $(RL_CREATE_CHART_PYSCRIPT) sciddicaT "$$PREC_TXT" "roofline/prof_opt_$(RL_EXE)_$$PREC_TXT.csv" "roofline/prof_runtime_$(RL_EXE)_$$PREC_TXT.csv"; \
 	done
-	rm -r roofline
 
 rl_naive: RL_EXE = $(EXEC_NAIVE)
 rl_naive: roofline
