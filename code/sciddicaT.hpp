@@ -181,25 +181,6 @@ void sciddicaTSimulationInit(const integer_t i, const integer_t j, const integer
   }
 }
 
-// ----------------------------------------------------------------------------
-// computing kernels, aka elementary processes in the XCA terminology
-// ----------------------------------------------------------------------------
-__global__
-void sciddicaTResetFlows(const integer_t i_start, const integer_t i_end, const integer_t j_start, const integer_t j_end, const integer_t r, const integer_t c,
-                         real_t* const __restrict__ Sf)
-{
-  integer_t i = blockIdx.y * blockDim.y + threadIdx.y;
-  integer_t j = blockIdx.x * blockDim.x + threadIdx.x;
-
-  if (i < i_start or i >= i_end or j < j_start or j >= j_end)
-    return;
-
-  BUF_SET(Sf, r, c, 0, i, j, 0.0);
-  BUF_SET(Sf, r, c, 1, i, j, 0.0);
-  BUF_SET(Sf, r, c, 2, i, j, 0.0);
-  BUF_SET(Sf, r, c, 3, i, j, 0.0);
-}
-
 
 // ----------------------------------------------------------------------------
 // Super class for running a generic (variant independent) sciddicaT cuda application:
@@ -275,7 +256,7 @@ public:
             derivedSciddicaTCuda.launch_width_update_kernel();
 
             derivedSciddicaTCuda.on_step_end();
-            
+
 #ifdef FLOWTIME_ONLY
             cudaEventRecord(flow_stop[s]);
 #endif
