@@ -8,6 +8,7 @@ using namespace std;
 #include <time.h>
 #include "util.hpp"
 #include "sciddicaT.hpp"
+#include "bitwise.hpp"
 
 
 __global__
@@ -37,7 +38,7 @@ void sciddicaTFlowsComputation(const integer_t i_start, const integer_t i_end, c
     if (i < i_start or i >= i_end or j < j_start or j >= j_end)
         return;
 
-    bool eliminated_cells[NEIGBORHOOD_SIZE] = {false, false, false, false, false};
+    uint8_t eliminated_cells = 0;  // all neighbours NOT eliminated by default
     bool again;
     uint8_t cells_count;
     real_t average;
@@ -82,7 +83,7 @@ void sciddicaTFlowsComputation(const integer_t i_start, const integer_t i_end, c
         cells_count = 0;
 
         for (uint8_t n = 0; n < NEIGBORHOOD_SIZE; n++)
-            if (!eliminated_cells[n])
+            if (!BIT_GET(eliminated_cells, n))
             {
                 average += u[n];
                 cells_count++;
@@ -92,16 +93,16 @@ void sciddicaTFlowsComputation(const integer_t i_start, const integer_t i_end, c
             average /= cells_count;
 
         for (uint8_t n = 0; n < NEIGBORHOOD_SIZE; n++)
-            if ((average <= u[n]) && (!eliminated_cells[n]))
+            if ((average <= u[n]) && (!BIT_GET(eliminated_cells, n)))
             {
-                eliminated_cells[n] = true; 
+                BIT_SET(eliminated_cells, n); 
                 again = true;
             }
     } while (again);
 
     real_t f_out = 0.0;
     for (uint8_t n = 1; n < NEIGBORHOOD_SIZE; n++)
-        if (!eliminated_cells[n])
+        if (!BIT_GET(eliminated_cells, n))
         {
             f_out = (average - u[n]) * P_R;
             real_t f_out_shared = BUF_GET(Sf_shared, blockDim.y, blockDim.x, n - 1, ti, tj);

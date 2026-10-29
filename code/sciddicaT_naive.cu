@@ -8,7 +8,7 @@ using namespace std;
 #include <time.h>
 #include "util.hpp"
 #include "sciddicaT.hpp"
-
+#include "bitwise.hpp"
 
 
 __global__
@@ -21,7 +21,7 @@ void sciddicaTFlowsComputation(const integer_t i_start, const integer_t i_end, c
     if (i < i_start or i >= i_end or j < j_start or j >= j_end)
         return;
 
-    bool eliminated_cells[NEIGBORHOOD_SIZE] = {false, false, false, false, false};
+    uint8_t eliminated_cells = 0;  // all neighbours NOT eliminated by default
     bool again;
     real_t average;
     real_t m;
@@ -53,7 +53,7 @@ void sciddicaTFlowsComputation(const integer_t i_start, const integer_t i_end, c
         uint8_t cells_count = 0;
 
         for (uint8_t n = 0; n < NEIGBORHOOD_SIZE; n++)
-            if (!eliminated_cells[n])
+            if (!BIT_GET(eliminated_cells, n))
             {
                 average += u[n];
                 cells_count++;
@@ -63,9 +63,9 @@ void sciddicaTFlowsComputation(const integer_t i_start, const integer_t i_end, c
             average /= cells_count;
 
         for (uint8_t n = 0; n < NEIGBORHOOD_SIZE; n++)
-            if ((average <= u[n]) && (!eliminated_cells[n]))
+            if ((average <= u[n]) && (!BIT_GET(eliminated_cells, n)))
             {
-                eliminated_cells[n] = true;
+                BIT_SET(eliminated_cells, n); 
                 again = true;
             }
     } while (again);
@@ -73,7 +73,7 @@ void sciddicaTFlowsComputation(const integer_t i_start, const integer_t i_end, c
     #pragma unroll
     for ( uint8_t i_n = 1; i_n < 5; ++i_n )
     {
-        real_t f_out = (eliminated_cells[i_n]) ? 0.0 : ((average - u[i_n]) * P_R);
+        real_t f_out = (BIT_GET(eliminated_cells, i_n)) ? 0.0 : ((average - u[i_n]) * P_R);
         BUF_SET(Sf, r, c, (i_n-1), i, j, f_out);
     }
 }
