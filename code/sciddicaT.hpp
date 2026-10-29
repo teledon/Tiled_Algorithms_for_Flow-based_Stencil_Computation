@@ -266,8 +266,7 @@ public:
         // simulation loop
         for (int s = 0; s < steps; ++s)
         {
-            derivedSciddicaTCuda.on_step_start();
-            
+
 #ifdef FLOWTIME_ONLY
             cudaEventRecord(flow_start[s]);
 #endif
@@ -275,11 +274,12 @@ public:
             derivedSciddicaTCuda.launch_flows_computation_kernel();
             derivedSciddicaTCuda.launch_width_update_kernel();
 
+            derivedSciddicaTCuda.on_step_end();
+            
 #ifdef FLOWTIME_ONLY
             cudaEventRecord(flow_stop[s]);
 #endif
 
-            derivedSciddicaTCuda.on_step_end();
         }
 
         cudaDeviceSynchronize();
@@ -316,7 +316,6 @@ public:
 protected:
     void init_extras() {}
     void free_extras() {}
-    inline void on_step_start() {}
     inline void launch_flows_computation_kernel() {}
     inline void launch_width_update_kernel() {}
     inline void on_step_end() {}

@@ -70,10 +70,12 @@ void sciddicaTFlowsComputation(const integer_t i_start, const integer_t i_end, c
             }
     } while (again);
 
-    if (!eliminated_cells[1]) BUF_SET(Sf, r, c, 0, i, j, (average - u[1]) * P_R);
-    if (!eliminated_cells[2]) BUF_SET(Sf, r, c, 1, i, j, (average - u[2]) * P_R);
-    if (!eliminated_cells[3]) BUF_SET(Sf, r, c, 2, i, j, (average - u[3]) * P_R);
-    if (!eliminated_cells[4]) BUF_SET(Sf, r, c, 3, i, j, (average - u[4]) * P_R);
+    #pragma unroll
+    for ( uint8_t i_n = 1; i_n < 5; ++i_n )
+    {
+        real_t f_out = (eliminated_cells[i_n]) ? 0.0 : ((average - u[i_n]) * P_R);
+        BUF_SET(Sf, r, c, (i_n-1), i, j, f_out);
+    }
 }
 
 __global__
@@ -115,8 +117,6 @@ protected:
     void free_extras()
         { cudaFree(Sf); }
 
-    inline void on_step_start()
-        { sciddicaTResetFlows<<<grid_size,block_size>>>(i_start, i_end, j_start, j_end, r, c, Sf); }
     inline void launch_flows_computation_kernel()
         { sciddicaTFlowsComputation<<<grid_size,block_size>>>(i_start, i_end, j_start, j_end, r, c, Sz, Sh, Sf); }
     inline void launch_width_update_kernel()
