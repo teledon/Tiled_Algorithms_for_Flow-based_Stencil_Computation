@@ -16,11 +16,13 @@ void sciddicaTFlowsComputation(const integer_t i_start, const integer_t i_end, c
                                const integer_t r, const integer_t c,
                                const real_t* const __restrict__ Sz, const real_t* const __restrict__ Sh, real_t* const __restrict__ Sh_next)
 {
-    dim3 tileDim(blockDim.x - 2, blockDim.y - 2, 1);  // I remove the 3 halo cells from blockDim to obtain tileDim, i.e., the size of the domain partitions.
-    integer_t i = blockIdx.y * tileDim.y + threadIdx.y - 1; // thread 0 maps the first halo cell, thread 1 the first domain partition cell, ...
-    integer_t j = blockIdx.x * tileDim.x + threadIdx.x - 1;
+    #define tileDim_x (blockDim.x - 2)  // I remove the 3 halo cells from blockDim to obtain tileDim, i.e., the size of the domain partitions.
+    #define tileDim_y (blockDim.y - 2)
     #define ti threadIdx.y // local indexes
     #define tj threadIdx.x //
+
+    integer_t i = blockIdx.y * tileDim_y + threadIdx.y - 1; // thread 0 maps the first halo cell, thread 1 the first domain partition cell, ...
+    integer_t j = blockIdx.x * tileDim_x + threadIdx.x - 1;
                                                         // domain_size = 16 |++++------------| ("-" = domain cells; "+" = cells to be updated)
                                                         // blk_0           |.****.|            ("*" = threads updating domain cells; "." = threads computing average)
                                                         // blk_0 index i    012345
@@ -35,93 +37,84 @@ void sciddicaTFlowsComputation(const integer_t i_start, const integer_t i_end, c
     for(uint8_t n = 0; n < ADJACENT_CELLS; ++n)
         BUF_SET(Sf_shared,  blockDim.y,  blockDim.x, n, threadIdx.y, threadIdx.x, 0.0);
 
-    if (i < i_start or i >= i_end or j < j_start or j >= j_end)
-        return;
+    bool in_domain = i >= i_start && i < i_end && j >= j_start && j < j_end;
+    real_t h_next;
 
-    uint8_t eliminated_cells = 0;  // all neighbours NOT eliminated by default
-    bool again;
-    uint8_t cells_count;
-    real_t average;
-    real_t m;
-    real_t u[5];
-    real_t z, h;
-
-    m = GET(Sh, c, i, j) - P_EPSILON;
-    if (m <= 0.0)
+    if ( in_domain )
     {
-        bool at_least_one = false;
-        for (uint8_t n = 1; n<NEIGBORHOOD_SIZE; ++n)
+        h_next = GET(Sh, c, i, j);
+        real_t m = h_next - P_EPSILON;
+        if (m > 0.0)
         {
-            integer_t i_n = i+Xi[n];
-            integer_t j_n = j+Xj[n];
-            if (not (i_n < 0 or i_n >= r or j_n < 0 or j_n >= c))
-                if (GET(Sh, c, i_n, j_n) - P_EPSILON > 0)
-                    at_least_one=true;
+            uint8_t eliminated_cells = 0;  // all neighbours NOT eliminated by default
+            bool again;
+            uint8_t cells_count;
+            real_t average;
+            real_t u[5];
+            real_t z, h;
+
+            u[0] = GET(Sz, c, i, j) + P_EPSILON;
+            z = GET(Sz, c, i + Xi[1], j + Xj[1]);
+            h = GET(Sh, c, i + Xi[1], j + Xj[1]);
+            u[1] = z + h;                                         
+            z = GET(Sz, c, i + Xi[2], j + Xj[2]);
+            h = GET(Sh, c, i + Xi[2], j + Xj[2]);
+            u[2] = z + h;                                         
+            z = GET(Sz, c, i + Xi[3], j + Xj[3]);
+            h = GET(Sh, c, i + Xi[3], j + Xj[3]);
+            u[3] = z + h;                                         
+            z = GET(Sz, c, i + Xi[4], j + Xj[4]);
+            h = GET(Sh, c, i + Xi[4], j + Xj[4]);
+            u[4] = z + h;
+
+            do
+            {
+                again = false;
+                average = m;
+                cells_count = 0;
+
+                for (uint8_t n = 0; n < NEIGBORHOOD_SIZE; n++)
+                    if (!BIT_GET(eliminated_cells, n))
+                    {
+                        average += u[n];
+                        cells_count++;
+                    }
+
+                if (cells_count != 0)
+                    average /= cells_count;
+
+                for (uint8_t n = 0; n < NEIGBORHOOD_SIZE; n++)
+                    if ((average <= u[n]) && (!BIT_GET(eliminated_cells, n)))
+                    {
+                        BIT_SET(eliminated_cells, n); 
+                        again = true;
+                    }
+            } while (again);
+
+            for (uint8_t n = 1; n < NEIGBORHOOD_SIZE; n++)
+                if (!BIT_GET(eliminated_cells, n))
+                {
+                    real_t f_out = (average - u[n]) * P_R;
+                    BUF_SET(Sf_shared, blockDim.y, blockDim.x, n - 1, ti, tj, f_out);
+                }
         }
-        if (not at_least_one)
-            return;
     }
-
-    u[0] = GET(Sz, c, i, j) + P_EPSILON;
-    z = GET(Sz, c, i + Xi[1], j + Xj[1]);
-    h = GET(Sh, c, i + Xi[1], j + Xj[1]);
-    u[1] = z + h;                                         
-    z = GET(Sz, c, i + Xi[2], j + Xj[2]);
-    h = GET(Sh, c, i + Xi[2], j + Xj[2]);
-    u[2] = z + h;                                         
-    z = GET(Sz, c, i + Xi[3], j + Xj[3]);
-    h = GET(Sh, c, i + Xi[3], j + Xj[3]);
-    u[3] = z + h;                                         
-    z = GET(Sz, c, i + Xi[4], j + Xj[4]);
-    h = GET(Sh, c, i + Xi[4], j + Xj[4]);
-    u[4] = z + h;
-
-    do
-    {
-        again = false;
-        average = m;
-        cells_count = 0;
-
-        for (uint8_t n = 0; n < NEIGBORHOOD_SIZE; n++)
-            if (!BIT_GET(eliminated_cells, n))
-            {
-                average += u[n];
-                cells_count++;
-            }
-
-        if (cells_count != 0)
-            average /= cells_count;
-
-        for (uint8_t n = 0; n < NEIGBORHOOD_SIZE; n++)
-            if ((average <= u[n]) && (!BIT_GET(eliminated_cells, n)))
-            {
-                BIT_SET(eliminated_cells, n); 
-                again = true;
-            }
-    } while (again);
-
-    real_t f_out = 0.0;
-    for (uint8_t n = 1; n < NEIGBORHOOD_SIZE; n++)
-        if (!BIT_GET(eliminated_cells, n))
-        {
-            f_out = (average - u[n]) * P_R;
-            real_t f_out_shared = BUF_GET(Sf_shared, blockDim.y, blockDim.x, n - 1, ti, tj);
-            BUF_SET(Sf_shared, blockDim.y, blockDim.x, n - 1, ti, tj, f_out_shared + f_out);
-        }
 
     __syncthreads();
 
     // Only in tile threads
-    if (ti > 0 and ti < tileDim.y + 1 and  tj > 0 and tj < tileDim.x + 1)
+    if (in_domain && ti > 0 && ti < tileDim_y + 1 &&  tj > 0 && tj < tileDim_x + 1)
     {
-        real_t h_next =  GET(Sh, c, i, j) ;
         h_next += BUF_GET(Sf_shared, blockDim.y, blockDim.x, 3, ti+Xi[1], tj+Xj[1]) - BUF_GET(Sf_shared, blockDim.y, blockDim.x, 0, ti, tj);
         h_next += BUF_GET(Sf_shared, blockDim.y, blockDim.x, 2, ti+Xi[2], tj+Xj[2]) - BUF_GET(Sf_shared, blockDim.y, blockDim.x, 1, ti, tj);
         h_next += BUF_GET(Sf_shared, blockDim.y, blockDim.x, 1, ti+Xi[3], tj+Xj[3]) - BUF_GET(Sf_shared, blockDim.y, blockDim.x, 2, ti, tj);
         h_next += BUF_GET(Sf_shared, blockDim.y, blockDim.x, 0, ti+Xi[4], tj+Xj[4]) - BUF_GET(Sf_shared, blockDim.y, blockDim.x, 3, ti, tj);
-        SET(Sh_next, c, i, j, h_next );
+        
+        SET(Sh_next, c, i, j, h_next);
     }
 
+    #undef tileDim_x
+    #undef tileDim_y
     #undef ti
     #undef tj
 }
